@@ -47,3 +47,56 @@ test('a no-evidence save still inserts under the default confidence gate', async
     )
   })
 })
+
+test('real evidence replaces the placeholder and stays stable across a reopen', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'smart-memory-placeholder-'))
+  const content = 'Deploys use Docker Compose.'
+
+  try {
+    let service = await MemoryService.create({ storagePath: dir })
+
+    try {
+      const first = await service.save({ candidate: { content, kind: 'fact' } })
+      assert.equal(first.action, 'insert')
+      assert.equal(first.entry?.evidence.length, 1)
+      assert.equal(first.entry?.evidence[0]?.source, 'inference')
+      assert.equal(first.entry?.evidence[0]?.quote, undefined)
+
+      const quote = 'Deploys use Docker Compose on the staging host.'
+      const second = await service.save({
+        candidate: { content, kind: 'fact' },
+        evidence: [{ source: 'user', at: '2026-02-01T00:00:00.000Z', quote }],
+      })
+      assert.equal(second.action, 'merge')
+      assert.deepEqual(second.entry?.evidence.map(item => item.quote), [quote])
+    } finally {
+      await service.close()
+    }
+
+    service = await MemoryService.create({ storagePath: dir })
+
+    try {
+      const reopened = service.recallSync({ text: 'Docker Compose' })
+      assert.equal(reopened.length, 1)
+      assert.deepEqual(
+        reopened[0]!.entry.evidence.map(item => item.quote),
+        ['Deploys use Docker Compose on the staging host.'],
+      )
+
+      // A later no-evidence save must not reintroduce a placeholder.
+      const third = await service.save({
+        candidate: { content, kind: 'fact' },
+        evidence: [{ source: 'user', at: '2026-02-02T00:00:00.000Z', quote: 'Staging deploys use Docker Compose.' }],
+      })
+      assert.equal(third.action, 'merge')
+      assert.deepEqual(
+        third.entry?.evidence.map(item => item.quote),
+        ['Deploys use Docker Compose on the staging host.', 'Staging deploys use Docker Compose.'],
+      )
+    } finally {
+      await service.close()
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})

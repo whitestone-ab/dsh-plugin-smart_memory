@@ -28,9 +28,15 @@ const MAX_EVIDENCE_ITEMS = 20
 /** How many of the earliest observations survive the cap, to keep provenance. */
 const OLDEST_EVIDENCE_KEPT = 5
 
-/** Stable identity of one observation, aligned with `collectEvidence`'s key. */
+/** True when an observation carries actual quoted source text. */
+function hasValidQuote(item: MemoryEvidence): boolean {
+  const quote: unknown = item.quote
+  return typeof quote === 'string' && quote.trim().length > 0
+}
+
+/** Stable identity of one real observation: provenance plus the quoted text. */
 function evidenceKey(item: MemoryEvidence): string {
-  return `${item.source}|${item.at}|${item.quote ?? ''}`
+  return `${item.source}\u0000${(item.quote ?? '').trim()}`
 }
 
 /** Total order: chronological, then provenance, then quote. ASCII-safe. */
@@ -48,20 +54,38 @@ function compareEvidence(a: MemoryEvidence, b: MemoryEvidence): number {
  * bounded history. Past the cap, the earliest `OLDEST_EVIDENCE_KEPT` are kept
  * alongside the most recent remainder, so initial provenance is not silently
  * discarded as a memory accumulates observations.
+ *
+ * Evidence without quoted text is a placeholder — the mark left by a save that
+ * carried no evidence, not an observation. Placeholders therefore never take a
+ * slot in the bounded window: once any real evidence exists they are dropped,
+ * and while none exists a single earliest placeholder stands in.
  */
 function mergeEvidenceHistory(
   existing: readonly MemoryEvidence[],
   incoming: readonly MemoryEvidence[],
 ): MemoryEvidence[] {
+  const placeholders: MemoryEvidence[] = []
+  const real: MemoryEvidence[] = []
+  for (const item of [...existing, ...incoming]) {
+    if (hasValidQuote(item)) real.push(item)
+    else placeholders.push(item)
+  }
+
   const seen = new Set<string>()
   const unique: MemoryEvidence[] = []
-  for (const item of [...existing, ...incoming]) {
+  for (const item of real) {
     const key = evidenceKey(item)
     if (seen.has(key)) continue
     seen.add(key)
     unique.push(item)
   }
   unique.sort(compareEvidence)
+
+  if (unique.length === 0) {
+    placeholders.sort(compareEvidence)
+    return placeholders.slice(0, 1)
+  }
+
   if (unique.length <= MAX_EVIDENCE_ITEMS) return unique
   const newestCount = MAX_EVIDENCE_ITEMS - OLDEST_EVIDENCE_KEPT
   return [
