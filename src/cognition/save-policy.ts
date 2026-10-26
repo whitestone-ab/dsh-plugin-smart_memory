@@ -23,6 +23,53 @@ export const DEFAULT_SAVE_POLICY: SavePolicyOptions = {
   dedupeThreshold: 0.78,
 }
 
+/** Hard cap on stored evidence; the oldest few plus the newest rest survive. */
+const MAX_EVIDENCE_ITEMS = 20
+/** How many of the earliest observations survive the cap, to keep provenance. */
+const OLDEST_EVIDENCE_KEPT = 5
+
+/** Stable identity of one observation, aligned with `collectEvidence`'s key. */
+function evidenceKey(item: MemoryEvidence): string {
+  return `${item.source}|${item.at}|${item.quote ?? ''}`
+}
+
+/** Total order: chronological, then provenance, then quote. ASCII-safe. */
+function compareEvidence(a: MemoryEvidence, b: MemoryEvidence): number {
+  if (a.at !== b.at) return a.at < b.at ? -1 : 1
+  if (a.source !== b.source) return a.source < b.source ? -1 : 1
+  const left = a.quote ?? ''
+  const right = b.quote ?? ''
+  if (left !== right) return left < right ? -1 : 1
+  return 0
+}
+
+/**
+ * Merge evidence histories with deduplication, chronological ordering, and a
+ * bounded history. Past the cap, the earliest `OLDEST_EVIDENCE_KEPT` are kept
+ * alongside the most recent remainder, so initial provenance is not silently
+ * discarded as a memory accumulates observations.
+ */
+function mergeEvidenceHistory(
+  existing: readonly MemoryEvidence[],
+  incoming: readonly MemoryEvidence[],
+): MemoryEvidence[] {
+  const seen = new Set<string>()
+  const unique: MemoryEvidence[] = []
+  for (const item of [...existing, ...incoming]) {
+    const key = evidenceKey(item)
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(item)
+  }
+  unique.sort(compareEvidence)
+  if (unique.length <= MAX_EVIDENCE_ITEMS) return unique
+  const newestCount = MAX_EVIDENCE_ITEMS - OLDEST_EVIDENCE_KEPT
+  return [
+    ...unique.slice(0, OLDEST_EVIDENCE_KEPT),
+    ...unique.slice(-newestCount),
+  ]
+}
+
 /** The four possible write decisions. */
 export type SaveAction = 'insert' | 'merge' | 'supersede' | 'reject'
 
@@ -138,7 +185,7 @@ export function mergeEntries(
   now: Date = new Date(),
 ): MemoryEntry {
   const useIncoming = candidate.content.length >= existing.content.length
-  const mergedEvidence = [...existing.evidence, ...evidence].slice(-20)
+  const mergedEvidence = mergeEvidenceHistory(existing.evidence, evidence)
   return {
     ...existing,
     kind: existing.kind === 'episode' ? candidate.kind : existing.kind,
