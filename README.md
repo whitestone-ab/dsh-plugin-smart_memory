@@ -1,85 +1,124 @@
 # smart-memory-dsh
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（CLI 名 `dsh`）提供持久化、可审计、按策略注入的智能记忆。
+> - **文档类型**：使用说明（对外）
+> - **创建时间**：2026-10-26 12:49 (UTC+8)
+> - **最后更新**：2026-10-26 16:05 (UTC+8)
+> - **对应代码**：`HEAD f9b226c`
+> - **适用版本**：`0.1.0`
+> - **状态**：有效
 
-插件把「记住什么、什么时候想起、冲突怎么办」拆成独立策略层：写入经过去重 / 冲突检测 / 置信度评估，检索按词法相关性 + 重要性 + 置信度 + 新近度排序，注入受字符预算约束，另有一条可选的自动捕获与定期整合链路。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（CLI 名 `dsh`）提供
+持久化、可审计、按策略注入的智能记忆。
 
-## 功能
+插件把「记住什么、什么时候想起、冲突怎么办」拆成独立策略层：写入经过去重 / 冲突检测 /
+置信度评估，检索按词法相关性 + 重要性 + 置信度 + 新近度排序，注入受字符预算约束，
+另有一条可选的自动捕获与定期整合链路。
 
-- **持久化存储** — 默认使用 `node:sqlite`（Node 24 内置）；运行时不支持时自动降级为原子写入的 JSON 文件。
+## 1. 文档导航
+
+| 文档 | 内容 |
+|---|---|
+| [README.md](README.md) | 本文：安装、配置、能力、模型 |
+| [docs/README.md](docs/README.md) | 文档索引、格式约定、时间线 |
+| [docs/PROGRESS.md](docs/PROGRESS.md) | 进度日志、测试现状、未完成项、已知风险 |
+| [docs/DESIGN.md](docs/DESIGN.md) | 立项前的设计存档（认知模型） |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | 按时间排列的提交记录 |
+| [prompts/](prompts/) | 记忆策略提示词（产品资产） |
+| [tests/memory-evaluation/](tests/memory-evaluation/) | 行为评测用例说明 |
+
+## 2. 当前状态
+
+| 项 | 值 |
+|---|---|
+| 版本 | `0.1.0`（未发布到 npm） |
+| 测试 | 53 条：单元 41、集成 12 |
+| 类型检查 | `tsc --noEmit` 通过 |
+| 后端 | `node:sqlite` 优先，JSON 原子写降级 |
+| 已知缺陷 | 5 项健壮性问题，见 [docs/PROGRESS.md](docs/PROGRESS.md#5-未完成项) |
+
+功能闭环已可用：保存、召回、注入、整合、遗忘、导出均有实现与测试覆盖；
+未完成项集中在存储失败路径与召回索引，不影响日常使用。
+
+## 3. 功能
+
+- **持久化存储** — 默认使用 `node:sqlite`（Node 24 内置）；运行时不支持时降级为原子写入的 JSON 文件。
 - **六种记忆类型** — `identity` / `preference` / `fact` / `decision` / `procedure` / `episode`。
 - **写入策略** — 拒绝低置信度内容，合并近重复，发现矛盾时用新记忆取代旧记忆并归档旧记录。
 - **检索策略** — 中英混合分词（中文按 bigram），词法相关性 + 重要性 + 置信度 + 新近度加权。
-- **上下文注入** — 作为 system prompt 的独立 section 注入，带字符预算与类型优先级；`interpolate: false` 避免用户内容被当作提示变量。
+- **上下文注入** — 作为 system prompt 的独立 section 注入，带字符预算与类型优先级；
+  文本中的 `{{` 会被转义为 `{ {`，避免被当成提示变量。
 - **原生命令** — `/memory-status`、`/memory-recall`、`/memory-save`、`/memory-forget`、`/memory-export`。
 - **生命周期** — 可选会话事件捕获、任务感知召回、定期整合（`ctx.effect` 托管定时器，卸载即清理）。
 - **可审计** — 证据、版本号、`supersedes` / `supersededBy` 均随记录持久化。
 
-## 目录结构
+## 4. 目录结构
 
 ```text
 smart-memory-dsh/
-│
 ├── package.json                  # npm 包与 DSH bundle 元数据
 ├── cordis.patch.yml              # 向 DSH 注册和组合插件
+├── tsconfig.json
 ├── README.md
 ├── LICENSE
+├── .npmrc                        # 关闭 peer 自动安装
+├── .gitattributes                # 统一 LF
+│
+├── docs/
+│   ├── README.md                 # 文档索引与格式约定
+│   ├── PROGRESS.md               # 进度日志
+│   ├── DESIGN.md                 # 设计存档
+│   └── CHANGELOG.md              # 提交记录
 │
 ├── src/
 │   ├── index.ts                  # 插件入口：apply(ctx)
-│   │
 │   ├── services/
 │   │   ├── memory-service.ts     # 统一记忆服务
 │   │   ├── memory-store.ts       # 记忆 CRUD 与版本管理
 │   │   └── memory-index.ts       # 检索索引管理
-│   │
 │   ├── tools/
 │   │   ├── memory-recall.ts
 │   │   ├── memory-save.ts
 │   │   ├── memory-forget.ts
 │   │   ├── memory-status.ts
 │   │   └── memory-export.ts
-│   │
 │   ├── context/
 │   │   ├── memory-section.ts     # 为模型上下文提供记忆
 │   │   └── injection-policy.ts   # 注入预算与优先级
-│   │
 │   ├── lifecycle/
 │   │   ├── session-capture.ts    # 捕获可持久化的会话事件
 │   │   ├── task-recall.ts        # 当前任务的记忆检索
 │   │   └── consolidation-trigger.ts
-│   │
 │   ├── cognition/
 │   │   ├── schema.ts             # 记忆数据模型
-│   │   ├── save-policy.ts        # 记忆写入规则
+│   │   ├── save-policy.ts        # 写入规则
 │   │   ├── recall-policy.ts      # 检索与排序规则
-│   │   ├── consolidate.ts        # 记忆去重、归纳和升级
-│   │   ├── conflict-check.ts     # 新旧记忆冲突检测
-│   │   └── confidence.ts         # 证据与置信度评估
-│   │
+│   │   ├── consolidate.ts        # 去重、归纳、升级
+│   │   ├── conflict-check.ts     # 冲突检测
+│   │   ├── confidence.ts         # 证据与置信度评估
+│   │   └── memory-namespace.ts   # scope / projectPath 隔离
 │   ├── storage/
-│   │   ├── sqlite-store.ts       # 持久化实现（SQLite，自动降级 JSON）
-│   │   └── migrations/           # 数据结构迁移
+│   │   ├── sqlite-store.ts       # SQLite 实现（自动降级 JSON）
+│   │   └── migrations/
 │   │       ├── 001-init.ts
 │   │       └── index.ts
-│   │
 │   └── commands/
-│       └── memory-commands.ts    # DSH 原生命令注册
+│       └── memory-commands.ts    # 原生命令注册
 │
-├── prompts/                      # 记忆策略与提示模板
+├── prompts/                      # 记忆策略提示模板
 │   ├── memory-recall.md
 │   ├── memory-save.md
 │   └── metacognitive-check.md
 │
 └── tests/
-    ├── unit/
-    ├── integration/
-    └── memory-evaluation/
+    ├── unit/                     # 6 个文件，41 条
+    ├── integration/              # 3 个文件，12 条
+    └── memory-evaluation/        # cases.json 数据用例
 ```
 
-构建相关文件：`tsconfig.json`、`pnpm-lock.yaml`、`.npmrc` 与 `pnpm-workspace.yaml`（后两者关闭 peer 自动安装，避免 pnpm 去拉取未发布的 `@deepseek-ai/dsh-type-meta`）。
+构建相关文件：`tsconfig.json`、`pnpm-lock.yaml`、`.npmrc` 与 `pnpm-workspace.yaml`
+（后两者关闭 peer 自动安装，避免 pnpm 拉取未发布的 `@deepseek-ai/dsh-type-meta`）。
 
-## 安装
+## 5. 安装
 
 要求：Node.js ≥ 22.19（推荐 24，`node:sqlite` 无需实验开关）、pnpm、已安装 `dsh`。
 
@@ -113,7 +152,7 @@ npx @deepseek-ai/dsh --profile dev --patch ./dev.patch.yml web
 > 修改 `package.json`、`cordis.patch.yml` 或构建产物后必须重启 profile；
 > 只有 profile 自己的 `cordis.patch.yml` 才热重载。
 
-## 配置
+## 6. 配置
 
 | 键 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -128,7 +167,7 @@ npx @deepseek-ai/dsh --profile dev --patch ./dev.patch.yml web
 
 修改 `~/.dsh/profiles/<name>/cordis.patch.yml` 时，`config` 是整段替换，务必保留全部键。
 
-## 工具与命令
+## 7. 工具与命令
 
 | 能力 | 名称 | 说明 |
 |---|---|---|
@@ -143,7 +182,7 @@ npx @deepseek-ai/dsh --profile dev --patch ./dev.patch.yml web
 | Command | `/memory-forget <id> [archive\|delete]` | 归档或删除 |
 | Command | `/memory-export [json\|markdown] [path]` | 导出 |
 
-## 记忆模型
+## 8. 记忆模型
 
 ```ts
 interface MemoryEntry {
@@ -168,18 +207,19 @@ interface MemoryEntry {
   supersedes?: string
   supersededBy?: string
   expiresAt?: string
+  projectPath?: string
 }
 ```
 
-### 写入决策
+### 8.1 写入决策
 
 1. 内容长度或格式非法 → `reject`
 2. 置信度低于 `minConfidence` → `reject`
 3. `subject` + `predicate` 相同但 `value` 不同，或高度相似且否定相反 → `supersede`
-4. 与同 scope 的现有记忆相似度 ≥ 0.82 → `merge`
+4. 与同 scope、同 `projectPath` 的现有记忆相似度 ≥ 0.78 → `merge`
 5. 否则 → `insert`
 
-### 检索评分
+### 8.2 检索评分
 
 ```text
 score = 0.60 × 词法覆盖率
@@ -189,17 +229,25 @@ score = 0.60 × 词法覆盖率
       + min(0.08, accessCount × 0.01)
 ```
 
-已被归档、已过期、类型/标签不匹配的记录不会进入结果。
+已被归档、已过期、类型 / 标签不匹配的记录不会进入结果。
 
-## 存储与隐私
+### 8.3 证据窗口
+
+单条记忆最多保留 20 条证据：最早的 5 条 + 最新的 15 条，按 `at` 升序输出。
+无 `quote` 的证据是「占位」：只要存在真实证据就被丢弃，否则最多保留最早一条。
+
+## 9. 存储与隐私
 
 - 默认位置：`$DSH_HOME/smart-memory/memory.sqlite`（或 `memory.json`）。
 - 数据库只保存在本机；插件不发起任何网络请求。
-- `autoCapture` 默认 **关闭**。开启后仅识别「记住…」「我更喜欢…」「我们决定…」等显式句式，并且只写入本地库。
+- `autoCapture` 默认 **关闭**。开启后仅识别「记住…」「我更喜欢…」「我们决定…」等显式句式，
+  并且只写入本地库。
 - 不要用记忆保存密钥、令牌、密码或身份证件信息。
 - 删除：`memory_forget` 的 `delete` 模式会移除记录；`archive` 保留墓碑以便审计。
+- `autoCapture` 只接受 `type=user/message` + `role=user` + `source.kind=user` 的事件；
+  这是**来源分类**，不是身份认证。
 
-## 开发
+## 10. 开发
 
 ```sh
 pnpm install
@@ -208,15 +256,27 @@ pnpm test
 pnpm build
 ```
 
-测试使用 Node 内置 `node:test` + `tsx`；检索/写入策略另有 `tests/memory-evaluation/cases.json` 数据用例。
+测试使用 Node 内置 `node:test` + `tsx`；检索 / 写入策略另有
+`tests/memory-evaluation/cases.json` 数据用例。
 
-## 已知限制
+单文件调试（绕过 `--test` 的子进程限制）：
+
+```sh
+npx tsx tests/unit/merge-evidence.test.ts
+```
+
+约定与风险见 [docs/PROGRESS.md](docs/PROGRESS.md)。
+
+## 11. 已知限制
 
 - 检索是词法索引，不是向量检索；同义改写依赖 token 重叠。
-- 自动捕获是保守的句式匹配，不是通用事实抽取。
+- 自动捕获是保守的句式匹配，不是通用事实抽取；引号与句末边界处理尚不完整。
 - 冲突检测在缺少 `subject` / `predicate` 时只能退化为「高相似 + 否定相反」的启发式。
-- SQLite 后端依赖运行时的 `node:sqlite`；Node 22 需要 `--experimental-sqlite`，否则自动使用 JSON 后端。
+- SQLite 后端依赖运行时的 `node:sqlite`；Node 22 需要 `--experimental-sqlite`，
+  否则自动使用 JSON 后端。
+- SQLite 初始化失败时静默降级，`memory_status` 目前不说明降级原因。
+- 召回仍遍历全部记录打分，`MemoryIndex` 尚未参与过滤。
 
-## License
+## 12. License
 
-MIT
+MIT，见 [LICENSE](LICENSE)。
