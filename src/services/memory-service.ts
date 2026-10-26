@@ -90,7 +90,13 @@ function isEvidenceSource(value: unknown): value is EvidenceSource {
   return typeof value === 'string' && (EVIDENCE_SOURCES as readonly string[]).includes(value)
 }
 
-/** Normalize evidence and guarantee at least one observation. */
+/**
+ * Normalize evidence and guarantee at least one observation.
+ *
+ * When a caller supplies no evidence, the placeholder is tagged `inference`:
+ * it marks a system-generated save, not an assertion by the user or the
+ * assistant. A missing observation must never be attributed to a speaker.
+ */
 function collectEvidence(
   candidate: MemoryCandidate,
   extra: readonly MemoryEvidence[] | undefined,
@@ -113,7 +119,7 @@ function collectEvidence(
     collected.push(evidence)
   }
   if (collected.length === 0) {
-    collected.push({ source: 'assistant', at: now.toISOString() })
+    collected.push({ source: 'inference', at: now.toISOString() })
   }
   return collected
 }
