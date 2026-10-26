@@ -1,0 +1,8 @@
+# pnpm 10+ reads settings from this file. Older pnpm and npm use .npmrc.
+# Do not auto-install peers: the @deepseek-ai/dsh-* peer graph references
+# packages that are not published (for example dsh-type-meta).
+autoInstallPeers: false
+strictPeerDependencies: false
+# tsx needs esbuild's postinstall to place its native binary.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "Behavioural evaluation cases for smart-memory-dsh. Each case seeds memories, runs a query, and asserts which memory ids must (or must not) be recalled.",
+  "cases": [
+    {
+      "id": "exact-tooling",
+      "seed": [
+        { "id": "m1", "content": "The project uses pnpm for package management.", "kind": "fact" },
+        { "id": "m2", "content": "The user prefers dark mode.", "kind": "preference" }
+      ],
+      "query": "package manager",
+      "expectIds": ["m1"]
+    },
+    {
+      "id": "chinese-bigram",
+      "seed": [
+        { "id": "m1", "content": "这个项目使用 pnpm 管理依赖。", "kind": "fact" },
+        { "id": "m2", "content": "发布前需要运行完整测试。", "kind": "procedure" }
+      ],
+      "query": "依赖管理",
+      "expectIds": ["m1"]
+    },
+    {
+      "id": "supersede-wins",
+      "seed": [
+        { "id": "m1", "content": "The package manager is npm.", "kind": "fact", "subject": "package-manager", "predicate": "is", "value": "npm", "status": "archived" },
+        { "id": "m2", "content": "The package manager is pnpm.", "kind": "fact", "subject": "package-manager", "predicate": "is", "value": "pnpm" }
+      ],
+      "query": "package manager",
+      "expectIds": ["m2"],
+      "forbidIds": ["m1"]
+    },
+    {
+      "id": "expired-is-invisible",
+      "seed": [
+        { "id": "m1", "content": "Temporary staging password rotation.", "kind": "fact", "expiresAt": "2020-01-01T00:00:00.000Z" }
+      ],
+      "query": "staging password",
+      "expectIds": []
+    },
+    {
+      "id": "empty-query-highlights",
+      "seed": [
+        { "id": "m1", "content": "Low priority note.", "kind": "episode", "importance": 0.1 },
+        { "id": "m2", "content": "Always answer in Chinese.", "kind": "preference", "importance": 0.9 }
+      ],
+      "query": "",
+      "expectIds": ["m2"]
+    }
+  ]
+}

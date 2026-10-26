@@ -1,0 +1,7 @@
+node_modules/
+lib/
+*.tgz
+*.sqlite
+*.sqlite-journal
+*.json.tmp
+memory-store/

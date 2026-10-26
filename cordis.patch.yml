@@ -1,0 +1,19 @@
+# Bundle patch — how this plugin mounts into a dsh profile.
+#
+# RULES
+# - New rows go under `- insert:`. The `id` must be unique across the whole
+#   composition and must equal `export const name` in src/index.ts.
+# - `name` is the npm package name, not a path.
+# - `config` is replaced wholesale by higher layers; keep every key here.
+- insert:
+    - id: smart-memory
+      name: smart-memory-dsh
+      config:
+        storagePath: ''
+        recallLimit: 8
+        injectBudgetChars: 1200
+        minConfidence: 0.35
+        autoCapture: false
+        autoConsolidate: true
+        consolidationIntervalMinutes: 60
+        captureMaxChars: 4000

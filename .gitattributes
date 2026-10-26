@@ -1,0 +1,4 @@
+# Normalize all text files to LF in both the repository and the working tree.
+# The machine-wide git config has core.autocrlf=true, which would otherwise
+# rewrite the whole tree to CRLF on checkout and produce fake diffs.
+* text=auto eol=lf
