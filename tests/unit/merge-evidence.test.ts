@@ -230,3 +230,14 @@ test('placeholder collapse is idempotent', () => {
 
   assert.deepEqual(twice.evidence, once.evidence)
 })
+
+test('keeps the earliest timestamp when the same quote is observed twice', () => {
+  const earlier: MemoryEvidence = { source: 'user', at: '2026-01-01T00:00:00.000Z', quote: 'same quote' }
+  const later: MemoryEvidence = { source: 'user', at: '2026-02-01T00:00:00.000Z', quote: 'same quote' }
+  const existing = entry({ id: 'mem_1', content: 'Same statement', evidence: [later] })
+  const candidate = withDefaults({ content: 'Same statement' })
+  const merged = mergeEntries(existing, candidate, 0.9, [earlier], new Date(STAMP))
+
+  assert.equal(merged.evidence.length, 1)
+  assert.equal(merged.evidence[0]!.at, '2026-01-01T00:00:00.000Z')
+})

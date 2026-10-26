@@ -71,6 +71,9 @@ function mergeEvidenceHistory(
     else placeholders.push(item)
   }
 
+  // Sort before deduplicating so a repeated source+quote keeps the earliest `at`.
+  real.sort(compareEvidence)
+
   const seen = new Set<string>()
   const unique: MemoryEvidence[] = []
   for (const item of real) {
@@ -79,7 +82,6 @@ function mergeEvidenceHistory(
     seen.add(key)
     unique.push(item)
   }
-  unique.sort(compareEvidence)
 
   if (unique.length === 0) {
     placeholders.sort(compareEvidence)
