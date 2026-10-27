@@ -2,17 +2,36 @@
 
 > - **文档类型**：提交记录
 > - **创建时间**：2026-10-26 16:05 (UTC+8)
-> - **最后更新**：2026-10-26 16:05 (UTC+8)
-> - **对应代码**：`HEAD f9b226c`
-> - **适用版本**：`smart-memory-dsh 0.1.0`
+> - **最后更新**：2026-10-27 12:20 (UTC+8)
+> - **对应代码**：`HEAD 745e3f4`
+> - **适用版本**：`smart-memory-dsh 0.1.1`
 > - **状态**：有效（由 `git log` 派生）
 
 条目按时间倒序，时间取自 `git log` 的提交时间（`+0800`）。
 完整细节用 `git show <hash>` 查看。
 
-## 未发布（`0.1.0` 之后）
+## 未发布（`0.1.1` 之后）
 
 无。
+
+## 0.1.1 — 2026-10-27
+
+### 反问句不再被存成记忆（`ef2726b`）
+
+- **问题**：自动捕获只看触发词，`我偏好哪种软件设计思路吗` 被存成 preference
+  （`mem_mvq5qp96_csdfej`，已清理）。
+- **修复**：`extractMemories` 增加疑问句过滤——含问号、以 吗/呢/么 结尾、
+  以疑问词开头、英文疑问词开头、匹配片段后紧跟问号，均丢弃。
+- **影响面**：陈述句式行为不变；已入库数据不回溯清理。
+- **测试**：新增 4 条，`pnpm test` 57 pass / 0 fail。
+
+### 开发流程与数据备份
+
+- 新增 [docs/dev-workflow.md](dev-workflow.md)：双 worktree 方案（`main` 日常运行，`dev` 开发）。
+- 新增 `scripts/git-hooks/` 与 `scripts/install-git-hooks.cjs`：`post-checkout` / `post-merge` /
+  `post-rewrite` 自动 `pnpm run build`，避免重启后加载旧 `lib/`。
+- 新增 `scripts/backup-memory.cjs`（`pnpm backup:memory`）：用 `VACUUM INTO` 热备份 sqlite，保留 20 份。
+- `package.json` 新增脚本：`dev`（`tsc --watch`）、`hooks:install`、`backup:memory`。
 
 ## 0.1.0 — 2026-10-26
 

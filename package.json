@@ -1,6 +1,6 @@
 {
   "name": "smart-memory-dsh",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Persistent, policy-driven agent memory for DeepSeek Harness: save, recall, consolidate, forget, and inject.",
   "type": "module",
   "main": "lib/index.js",
