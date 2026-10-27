@@ -26,8 +26,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test tests/unit/*.test.ts tests/integration/*.test.ts",
+    "backup:memory": "node scripts/backup-memory.cjs",
+    "hooks:install": "node scripts/install-git-hooks.cjs",
     "prepublishOnly": "pnpm run build"
   },
   "keywords": [

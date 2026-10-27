@@ -51,6 +51,43 @@ const PATTERNS: readonly CapturePattern[] = [
 /** Keys whose values can carry human text in a session event. */
 const TEXT_KEYS = new Set(['text', 'content', 'message', 'prompt', 'data', 'input', 'payload'])
 
+/** Chinese sentence-final particles that turn a statement into a question. */
+const CJK_QUESTION_ENDINGS = /[吗呢么]$/u
+
+/** Chinese interrogatives that open a question rather than state a fact. */
+const CJK_INTERROGATIVE_OPENERS = /^(?:哪种|哪个|哪些|什么|怎么|怎样|为什么|为何|如何|是否|多少|谁)/u
+
+/** English interrogative first words that open a question. */
+const EN_INTERROGATIVE_OPENERS = new Set([
+  'what', 'which', 'who', 'whom', 'whose', 'when', 'where', 'why', 'how',
+  'do', 'does', 'did', 'is', 'are', 'am', 'was', 'were',
+  'can', 'could', 'should', 'would', 'will', 'shall', 'may', 'might',
+])
+
+/**
+ * True when captured text reads as a question rather than a statement.
+ *
+ * The capture patterns match statements ("我喜欢 X", "记住 X"), but the same
+ * trigger words open a question just as often — "你偏好哪种设计吗" would
+ * otherwise be stored as a stated preference. A question asserts nothing, so
+ * it must not become a memory.
+ *
+ * The check is deliberately conservative: an explicit question mark, a Chinese
+ * sentence-final particle, or an interrogative first word. Anything subtler is
+ * treated as a statement, because dropping a real preference is worse than
+ * keeping one weak record. A rhetorical question phrased without any of these
+ * markers still slips through — that residue is accepted.
+ */
+function isInterrogative(content: string): boolean {
+  const text = content.trim()
+  if (text.length === 0) return false
+  if (/[?？]/u.test(text)) return true
+  if (CJK_QUESTION_ENDINGS.test(text)) return true
+  if (CJK_INTERROGATIVE_OPENERS.test(text)) return true
+  const firstWord = /^[a-z]+/u.exec(text.toLowerCase())?.[0]
+  return firstWord !== undefined && EN_INTERROGATIVE_OPENERS.has(firstWord)
+}
+
 /** Extract explicit memory statements from one block of text. */
 export function extractMemories(text: string): CapturedMemory[] {
   const found: CapturedMemory[] = []
@@ -68,6 +105,11 @@ export function extractMemories(text: string): CapturedMemory[] {
       if (raw === undefined) continue
       const content = raw.trim().replace(/\s+/gu, ' ')
       if (content.length < 4) continue
+      if (isInterrogative(content)) continue
+      // The pattern stops at sentence punctuation, so a question mark that ends
+      // the sentence sits just outside the captured group ("I prefer tabs?").
+      const afterMatch = text.slice((match.index ?? 0) + match[0].length)
+      if (/^\s*[?？]/u.test(afterMatch)) continue
       const key = content.toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)

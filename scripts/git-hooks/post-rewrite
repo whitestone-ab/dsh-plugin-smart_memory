@@ -1,0 +1,3 @@
+#!/bin/sh
+# Runs after `git rebase` / `git commit --amend` rewrites history in place.
+exec "$(dirname "$0")/_rebuild-lib.sh"

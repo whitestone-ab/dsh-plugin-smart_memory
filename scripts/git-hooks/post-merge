@@ -1,0 +1,3 @@
+#!/bin/sh
+# Runs after `git merge` / `git pull` brings new commits in.
+exec "$(dirname "$0")/_rebuild-lib.sh"

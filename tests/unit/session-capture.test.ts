@@ -242,3 +242,38 @@ test('rejects user messages without source provenance', () => {
 
   assert.deepEqual(observed, [])
 })
+
+test('does not store a question as a stated preference', () => {
+  // Regression: "我偏好哪种设计吗" was captured as a preference before the
+  // interrogative filter, because the trigger word alone decided the match.
+  assert.deepEqual(extractMemories('我偏好哪种软件设计思路吗'), [])
+  assert.deepEqual(extractMemories('我喜欢模块化吗'), [])
+  assert.deepEqual(extractMemories('我们决定用哪个数据库呢'), [])
+})
+
+test('does not store a question opened by an interrogative word', () => {
+  assert.deepEqual(extractMemories('记住：什么情况下要回滚'), [])
+  assert.deepEqual(extractMemories('我喜欢什么样的目录结构'), [])
+})
+
+test('does not store an English question', () => {
+  assert.deepEqual(extractMemories('I prefer tabs?'), [])
+  assert.deepEqual(extractMemories('We decided on which database?'), [])
+})
+
+test('still stores the same statements phrased as plain statements', () => {
+  const preference = extractMemories('我喜欢模块化设计')
+  assert.equal(preference.length, 1)
+  assert.equal(preference[0].kind, 'preference')
+  assert.equal(preference[0].content, '模块化设计')
+
+  const decision = extractMemories('我们决定统一用 pnpm')
+  assert.equal(decision.length, 1)
+  assert.equal(decision[0].kind, 'decision')
+  assert.equal(decision[0].content, '统一用 pnpm')
+
+  const fact = extractMemories('记住：周五前提交代码')
+  assert.equal(fact.length, 1)
+  assert.equal(fact[0].kind, 'fact')
+  assert.equal(fact[0].content, '周五前提交代码')
+})
