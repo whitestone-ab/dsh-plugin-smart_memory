@@ -29,9 +29,15 @@ git merge dev
 
 ## 钩子做了什么
 
-`.git/hooks/` 下的 `post-checkout`、`post-merge`、`post-rewrite` 都指向
-`_rebuild-lib.sh`：切分支、拉取、变基之后自动重建 `lib/`，编译失败只打印
-尾部日志、不阻断 git 操作。钩子在两个工作副本中都生效。
+`post-checkout`、`post-merge`、`post-rewrite` 都转发给 `_rebuild-lib.sh`：
+切分支、拉取、变基之后自动重建 `lib/`，编译失败只打印尾部日志、不阻断 git
+操作。钩子在两个工作副本中共享同一份（worktree 共用 `.git/hooks`）。
+
+源码在 `scripts/git-hooks/`（`.git/hooks` 不随仓库分发）。新克隆的环境执行：
+
+```powershell
+pnpm run hooks:install
+```
 
 ## 记忆数据
 

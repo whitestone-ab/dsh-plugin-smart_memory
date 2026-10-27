@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs after `git checkout` / `git switch` / `git worktree add`.
+# Rebuilds lib/ so branch switches cannot leave a linked plugin on stale JS.
+exec "$(dirname "$0")/_rebuild-lib.sh"
